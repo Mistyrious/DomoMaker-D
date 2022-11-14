@@ -62,6 +62,47 @@ const signup = async (req, res) => {
   }
 };
 
+const changePass = async (req, res) => {
+  const oldPass = `${req.body.oldPass}`;
+  const pass = `${req.body.pass}`;
+  const pass2 = `${req.body.pass2}`;
+  const user = req.session.account._id;
+
+  if (!oldPass || !pass || !pass2) {
+    return res.status(400).json({ error: 'All fields are required!' });
+  }
+
+  if (pass !== pass2) {
+    return res.status(400).json({ error: 'New passwords do not match!' });
+  }
+
+  let doc;
+
+  try {
+    doc = await Account.findById(user).exec();
+    // doc = await AccountModel.findOne({ user }).exec();
+
+    Account.authenticate(doc.username, pass, (err, account) => {
+      if (err || !account) {
+        return res.status(401).json({ error: 'Password incorrect' });
+      }
+      return null;
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Something went wrong.' });
+  }
+
+  try {
+    const hash = await Account.generateHash(pass);
+    doc.password = hash;
+    await doc.save();
+    return res.json({ redirect: '/maker' });
+  } catch (err) {
+    console.log(err);
+    return res.status(400).json({ error: 'An error occurred' });
+  }
+};
+
 const getToken = (req, res) => res.json({ csrfToken: req.csrfToken() });
 
 module.exports = {
@@ -70,5 +111,6 @@ module.exports = {
   login,
   logout,
   signup,
+  changePass,
   getToken,
 };
